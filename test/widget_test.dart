@@ -1,10 +1,61 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:note_app/main.dart';
+import 'package:note_app/models/note_model.dart';
+import 'package:note_app/services/firestore_service.dart';
+
+class FakeFirestoreService extends FirestoreService {
+  FakeFirestoreService() : super.ctor();
+
+  final List<Note> _db = [];
+  final StreamController<List<Note>> _controller = StreamController<List<Note>>.broadcast();
+
+  @override
+  Future<void> addNote({
+    required String title,
+    required String story,
+  }) async {
+    final newNote = Note(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: title,
+      story: story,
+    );
+    _db.add(newNote);
+    _controller.add(List.from(_db));
+  }
+
+  @override
+  Stream<List<Note>> getNotes() async* {
+    yield List.from(_db);
+    yield* _controller.stream;
+  }
+
+  @override
+  Future<void> updateNote({
+    required String id,
+    required String title,
+    required String story,
+  }) async {
+    final index = _db.indexWhere((n) => n.id == id);
+    if (index != -1) {
+      _db[index] = Note(id: id, title: title, story: story);
+      _controller.add(List.from(_db));
+    }
+  }
+
+  @override
+  Future<void> deleteNote(String id) async {
+    _db.removeWhere((n) => n.id == id);
+    _controller.add(List.from(_db));
+  }
+}
 
 void main() {
   testWidgets('Create, view, and edit note smoke test', (WidgetTester tester) async {
+    FirestoreService.instance = FakeFirestoreService();
+
     // Build our app and trigger a frame.
     await tester.pumpWidget(const MyApp());
 

@@ -1,13 +1,13 @@
   import 'package:flutter/material.dart';
-
-  import '../models/note_model.dart';
+  import '../services/firestore_service.dart';
+  import '../services/firestore_service.dart';
 
 
 
   class CreateNote extends StatefulWidget {
-    const CreateNote({super.key, required this.onNoteCreated});
+    const CreateNote({super.key});
 
-    final Function(Note) onNoteCreated;
+    // final Function(Note) onNoteCreated;
 
     @override
     State<CreateNote> createState() => _CreateNoteState();
@@ -17,6 +17,7 @@
 class _CreateNoteState extends State<CreateNote> {
   late final TextEditingController titleController;
   late final TextEditingController storyController;
+  final FirestoreService firestoreService = FirestoreService();
 
   @override
   void initState() {
@@ -78,17 +79,16 @@ class _CreateNoteState extends State<CreateNote> {
           ),
         ),
         floatingActionButton: FloatingActionButton(
-          onPressed: () {
+          onPressed: () async {
             if (titleController.text.isEmpty) return;
             if (storyController.text.isEmpty) return;
 
-            final note = Note(
+            await firestoreService.addNote(
               title: titleController.text,
               story: storyController.text,
             );
 
-            widget.onNoteCreated(note);
-            Navigator.of(context).pop();
+            Navigator.pop(context);
           },
           child: const Icon(Icons.save),
         ),

@@ -1,20 +1,15 @@
 import 'package:flutter/material.dart';
 import '../models/note_model.dart';
+import '../services/firestore_service.dart';
 import 'edit_note.dart';
 
 class NoteView extends StatefulWidget {
   const NoteView({
     super.key,
     required this.note,
-    required this.index,
-    required this.onNoteDeleted,
-    required this.onNoteEdited,
   });
 
   final Note note;
-  final int index;
-  final Function(int) onNoteDeleted;
-  final Function(Note, int) onNoteEdited;
 
   @override
   State<NoteView> createState() => _NoteViewState();
@@ -22,11 +17,61 @@ class NoteView extends StatefulWidget {
 
 class _NoteViewState extends State<NoteView> {
   late Note currentNote;
+  final FirestoreService firestoreService = FirestoreService();
 
   @override
   void initState() {
     super.initState();
     currentNote = widget.note;
+  }
+
+  Future<void> _deleteNote() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Delete Note"),
+          content: Text(
+            "Are you sure you want to delete '${currentNote.title}'?",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Delete"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      await firestoreService.deleteNote(currentNote.id);
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  Future<void> _editNote() async {
+    final updated = await Navigator.push<Note>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditNote(
+          note: currentNote,
+        ),
+      ),
+    );
+
+    if (updated != null && mounted) {
+      setState(() {
+        currentNote = updated;
+      });
+    }
   }
 
   @override
@@ -36,67 +81,24 @@ class _NoteViewState extends State<NoteView> {
         title: Text(currentNote.title),
         actions: [
           IconButton(
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (context) => EditNote(
-                  note: currentNote,
-                  onNoteSaved: (updatedNote) {
-                    setState(() {
-                      currentNote = updatedNote;
-                    });
-                    widget.onNoteEdited(updatedNote, widget.index);
-                  },
-                ),
-              ));
-            },
+            onPressed: _editNote,
             icon: const Icon(Icons.edit),
           ),
           IconButton(
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text("Delete Note"),
-                  content: Text("Are you sure you want to delete ${currentNote.title}?"),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      child: const Text("Cancel"),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        widget.onNoteDeleted(widget.index);
-                        Navigator.of(context).pop();
-                      },
-                      child: const Text("Delete"),
-                    ),
-                  ],
-                ),
-              );
-            },
+            onPressed: _deleteNote,
             icon: const Icon(Icons.delete),
           ),
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(10.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 10),
-            Text(
-              currentNote.story,
-              style: const TextStyle(
-                fontSize: 18,
-              ),
-            ),
-          ],
+        padding: const EdgeInsets.all(10),
+        child: Text(
+          currentNote.story,
+          style: const TextStyle(
+            fontSize: 18,
+          ),
         ),
       ),
     );
   }
 }
-
